@@ -10,3 +10,13 @@ Thumbs.db
 .idea/
 .vscode/
 .local/
+work/
+
+.env
+.env.*
+*.pem
+*.key
+*.sqlite*
+*.db
+*.exe
+

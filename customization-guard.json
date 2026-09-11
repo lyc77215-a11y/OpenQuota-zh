@@ -1,0 +1,23 @@
+{
+  "upstreamRepository": "deviffyy/OpenQuota",
+  "lastIntegratedRelease": "v0.4.2",
+  "updatePolicy": "Only install an upstream-derived update after all guarded requirements and tests pass.",
+  "requirements": [
+    "Keep the Simplified Chinese application identity and localized UI.",
+    "Keep the Windows mini floating bar at 396x52 logical window size with a borderless 396x52 content bar.",
+    "Keep the matte translucent rounded panel appearance without a hard screenshot-like rectangle.",
+    "Keep visible Codex usage, progress, pacing reminder, expand, manual refresh, settings, and hide controls.",
+    "Keep the Codex rolling 5-hour and 7-day limits visible as separate quota windows.",
+    "Keep pacing judgments separate for the 5-hour and 7-day windows, and label the affected period explicitly in the compact alert.",
+    "Keep today, current reset-window, and locally discoverable account-history token totals in the expanded panel.",
+    "Keep clickable cached, non-cached input, and output/reasoning token classifications for today and the current reset window.",
+    "Keep the expanded local cost card clickable, with today and 30-day estimates shown in both USD and CNY plus the reference exchange rate and estimate disclaimer.",
+    "When cost details expand, automatically scroll the dashboard downward to reveal the currency table after native resizing settles.",
+    "Keep the desktop floating-window toggle visible at the top of Settings.",
+    "Keep background quota refresh at five minutes and expose the interval in Settings.",
+    "Keep launch-at-login disabled unless the user explicitly turns it on.",
+    "Do not install an official upstream binary over the customized build.",
+    "Install and open a successfully rebuilt customized Windows version, and retain only its latest installer.",
+    "If integration, tests, packaging, or visual verification fails, keep the installed stable version unchanged and report the blocker."
+  ]
+}
