@@ -276,6 +276,15 @@ impl CodexProvider {
             None
         };
         let mapped = map_usage(&response, reset_credits.as_ref(), now)?;
+        let current_window_started_at = mapped
+            .quotas
+            .iter()
+            .find(|quota| quota.id == "weekly")
+            .and_then(|quota| {
+                let reset = quota.resets_at.as_ref()?;
+                let seconds = i64::try_from(quota.period_seconds).ok()?;
+                chrono::Duration::try_seconds(seconds).map(|period| *reset - period)
+            });
         let pricing = self.pricing.current();
         let usage = scan_or_cached_usage(
             &self.storage,
@@ -284,7 +293,7 @@ impl CodexProvider {
                 .map(crate::providers::CacheIdentity::Resolved)
                 .unwrap_or(crate::providers::CacheIdentity::Unresolved),
             "Codex",
-            || scan_local_usage(&self.storage, now, &pricing),
+            || scan_local_usage(&self.storage, now, &pricing, current_window_started_at),
             &mut warnings,
         );
         Self::ensure_candidate_source_current(auth, account_identity)?;

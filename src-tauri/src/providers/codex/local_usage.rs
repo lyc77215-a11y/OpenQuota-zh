@@ -11,7 +11,7 @@ use serde_json::Value;
 use walkdir::WalkDir;
 
 use crate::{
-    models::UsageHistory,
+    models::{TokenUsageBreakdown, UsageHistory},
     pricing::{ModelPricing, ModelRates, TokenBreakdown},
     storage::Storage,
 };
@@ -41,6 +41,7 @@ pub fn scan_local_usage(
     storage: &Storage,
     now: DateTime<Utc>,
     pricing: &ModelPricing,
+    current_window_started_at: Option<DateTime<Utc>>,
 ) -> Result<UsageHistory, CodexError> {
     let home = home_directory();
     let configured_home = crate::provider_environment::value("CODEX_HOME");
@@ -50,10 +51,28 @@ pub fn scan_local_usage(
         .date_naive()
         .checked_sub_days(Days::new(30))
         .unwrap_or(NaiveDate::MIN);
-    let events = scan_codex_events(storage, &homes, since_date)?;
+    let events = scan_codex_events(storage, &homes, NaiveDate::MIN)?;
+    let current_window_token_breakdown = current_window_started_at
+        .and_then(|started_at| token_breakdown_since(&events, started_at, now));
+    let today_token_breakdown = token_breakdown_for_local_day(
+        &events,
+        now.with_timezone(&Local).date_naive(),
+        now,
+    );
+    let recent_events = events
+        .iter()
+        .filter(|event| event.timestamp.with_timezone(&Local).date_naive() >= since_date)
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let mut account_accumulator = DailyUsageAccumulator::default();
+    aggregate_all_into(events, now, pricing, &mut account_accumulator);
+    let account_history = account_accumulator
+        .build(now, "From all Codex logs available on this device (estimated)")
+        .last_30_days;
 
     let mut accumulator = DailyUsageAccumulator::default();
-    aggregate_into(events, now, pricing, &mut accumulator);
+    aggregate_into(recent_events, now, pricing, &mut accumulator);
     let includes_pi = match pi_usage::scan_into(storage, now, pricing, "codex", &mut accumulator) {
         Ok(includes_pi) => includes_pi,
         Err(_) => {
@@ -69,7 +88,70 @@ pub fn scan_local_usage(
     } else {
         "From your Codex logs (estimated)"
     };
-    Ok(accumulator.build(now, source_note))
+    let mut history = accumulator.build(now, source_note);
+    history.account_history = account_history;
+    history.today_token_breakdown = today_token_breakdown;
+    history.current_window_tokens = current_window_token_breakdown.map(TokenUsageBreakdown::total);
+    history.current_window_token_breakdown = current_window_token_breakdown;
+    Ok(history)
+}
+
+#[cfg(test)]
+fn token_total_since(events: &[TokenEvent], started_at: DateTime<Utc>, now: DateTime<Utc>) -> u64 {
+    token_breakdown_since(events, started_at, now)
+        .map(TokenUsageBreakdown::total)
+        .unwrap_or_default()
+}
+
+fn token_breakdown_since(
+    events: &[TokenEvent],
+    started_at: DateTime<Utc>,
+    now: DateTime<Utc>,
+) -> Option<TokenUsageBreakdown> {
+    token_breakdown_from_events(
+        events
+            .iter()
+            .filter(|event| event.timestamp >= started_at && event.timestamp <= now),
+    )
+}
+
+fn token_breakdown_for_local_day(
+    events: &[TokenEvent],
+    date: NaiveDate,
+    now: DateTime<Utc>,
+) -> Option<TokenUsageBreakdown> {
+    token_breakdown_from_events(events.iter().filter(|event| {
+        event.timestamp <= now && event.timestamp.with_timezone(&Local).date_naive() == date
+    }))
+}
+
+fn token_breakdown_from_events<'a>(
+    events: impl Iterator<Item = &'a TokenEvent>,
+) -> Option<TokenUsageBreakdown> {
+    let mut seen = HashSet::new();
+    let breakdown = events
+        .filter(|event| {
+            seen.insert((
+                event.timestamp,
+                event.model.as_str(),
+                event.input,
+                event.cached,
+                event.output,
+                event.reasoning,
+                event.total,
+            ))
+        })
+        .fold(TokenUsageBreakdown::default(), |mut total, event| {
+            total.cached = total.cached.saturating_add(event.cached);
+            total.input = total
+                .input
+                .saturating_add(event.input.saturating_sub(event.cached));
+            total.output = total
+                .output
+                .saturating_add(event.total.saturating_sub(event.input));
+            total
+        });
+    (breakdown.total() > 0).then_some(breakdown)
 }
 
 fn scan_codex_events(
@@ -500,6 +582,25 @@ fn aggregate_into(
 ) {
     let today = now.with_timezone(&Local).date_naive();
     let since = today.checked_sub_days(Days::new(30)).unwrap_or(today);
+    aggregate_since_into(events, now, pricing, since, accumulator);
+}
+
+fn aggregate_all_into(
+    events: Vec<TokenEvent>,
+    now: DateTime<Utc>,
+    pricing: &ModelPricing,
+    accumulator: &mut DailyUsageAccumulator,
+) {
+    aggregate_since_into(events, now, pricing, NaiveDate::MIN, accumulator);
+}
+
+fn aggregate_since_into(
+    events: Vec<TokenEvent>,
+    now: DateTime<Utc>,
+    pricing: &ModelPricing,
+    since: NaiveDate,
+    accumulator: &mut DailyUsageAccumulator,
+) {
     let mut seen = HashSet::new();
 
     for event in events {
@@ -513,6 +614,9 @@ fn aggregate_into(
             event.total,
         );
         if !seen.insert(key) {
+            continue;
+        }
+        if event.timestamp > now {
             continue;
         }
         let date = event.timestamp.with_timezone(&Local).date_naive();
@@ -625,9 +729,11 @@ mod tests {
     use tempfile::tempdir;
 
     use super::{
-        aggregate, codex_homes, codex_long_context_rates, codex_priority_multiplier,
-        discover_session_files, estimate_cost, parse_jsonl, scan_codex_events, TokenEvent,
+        aggregate, aggregate_all_into, codex_homes, codex_long_context_rates,
+        codex_priority_multiplier, discover_session_files, estimate_cost, parse_jsonl,
+        scan_codex_events, token_breakdown_since, token_total_since, TokenEvent,
     };
+    use crate::providers::daily_usage::DailyUsageAccumulator;
     use crate::pricing::{
         test_bundled_pricing, ModelPricing, ModelRates, PricingCatalog, PricingSupplement,
     };
@@ -652,6 +758,37 @@ mod tests {
         assert_eq!(events.len(), 2);
         assert_eq!(events[1].input, 60);
         assert_eq!(events[1].output, 10);
+    }
+
+    #[test]
+    fn current_window_tokens_use_exact_event_timestamps() {
+        let content = r#"{"timestamp":"2026-07-10T08:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":90,"cached_input_tokens":50,"output_tokens":10,"total_tokens":100}}}}
+{"timestamp":"2026-07-10T09:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":180,"cached_input_tokens":100,"output_tokens":20,"total_tokens":200}}}}
+{"timestamp":"2026-07-10T13:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":270,"output_tokens":30,"total_tokens":300}}}}"#;
+        let events = parse_jsonl(content);
+        let started_at = Utc.with_ymd_and_hms(2026, 7, 10, 8, 30, 0).unwrap();
+        let now = Utc.with_ymd_and_hms(2026, 7, 10, 12, 0, 0).unwrap();
+
+        assert_eq!(token_total_since(&events, started_at, now), 200);
+        let breakdown = token_breakdown_since(&events, started_at, now).unwrap();
+        assert_eq!(breakdown.cached, 100);
+        assert_eq!(breakdown.input, 80);
+        assert_eq!(breakdown.output, 20);
+        assert_eq!(breakdown.total(), 200);
+    }
+
+    #[test]
+    fn account_history_includes_logs_older_than_thirty_days() {
+        let content = r#"{"timestamp":"2026-05-01T08:00:00Z","type":"event_msg","payload":{"type":"token_count","model":"gpt-5.4","info":{"last_token_usage":{"input_tokens":90,"output_tokens":10,"total_tokens":100}}}}
+{"timestamp":"2026-07-10T09:00:00Z","type":"event_msg","payload":{"type":"token_count","model":"gpt-5.4","info":{"last_token_usage":{"input_tokens":180,"output_tokens":20,"total_tokens":200}}}}"#;
+        let now = Utc.with_ymd_and_hms(2026, 7, 10, 12, 0, 0).unwrap();
+        let pricing = test_bundled_pricing();
+        let mut accumulator = DailyUsageAccumulator::default();
+
+        aggregate_all_into(parse_jsonl(content), now, &pricing, &mut accumulator);
+        let history = accumulator.build(now, "All local Codex logs");
+
+        assert_eq!(history.last_30_days.as_ref().unwrap().tokens, 300);
     }
 
     #[test]
