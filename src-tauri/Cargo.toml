@@ -7,7 +7,10 @@ edition = "2021"
 
 [lib]
 name = "openquota_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# This localized fork targets Windows desktop only. The desktop binary links the
+# Rust library as an rlib; omitting mobile-oriented staticlib/cdylib outputs also
+# avoids GNU/MinGW's DLL auto-export limit when running native tests.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
