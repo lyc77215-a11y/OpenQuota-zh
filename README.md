@@ -59,7 +59,7 @@ cargo build --release --manifest-path src-tauri/Cargo.toml
 corepack pnpm build:installer
 ```
 
-此版本的打包配置要求 `src-tauri/target/release/WebView2Loader.dll`。如使用 GNU/MinGW 工具链，需将同一工具链生成的 x64 WebView2Loader.dll 放到该位置，再执行打包；安装包 r21 已包含该文件。不要使用来源不明的 DLL。原版跨平台发布工作流保留为 `docs/upstream-workflows/*.yml.example`，不自动发布此定制分支。
+此版本的打包配置要求 `src-tauri/target/release/WebView2Loader.dll`。如使用 GNU/MinGW 工具链，需将同一工具链生成的 x64 WebView2Loader.dll 放到该位置，再执行打包；安装包 r21 已包含该文件。不要使用来源不明的 DLL。原版跨平台工作流保留在 `.github/workflows` 作为参考；本派生仓库未启用这些工作流，当前通过 Releases 手动发布 Windows 定制安装包。
 
 ## 验证与反馈
 
