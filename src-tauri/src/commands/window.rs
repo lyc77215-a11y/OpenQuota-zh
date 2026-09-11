@@ -37,11 +37,11 @@ pub fn get_panel_height_mode(app: AppHandle) -> PanelHeightMode {
 }
 
 #[tauri::command]
-pub fn fit_panel_to_content(app: AppHandle, height: u32) -> Result<bool, String> {
+pub fn fit_panel_to_content(app: AppHandle, height: u32, force: bool) -> Result<bool, String> {
     let window = app
         .get_webview_window(MAIN_WINDOW)
         .ok_or("OpenQuota window is unavailable.")?;
-    fit_native_panel_to_content(&window, height.max(1))
+    fit_native_panel_to_content(&window, height.max(1), force)
 }
 
 #[tauri::command]
