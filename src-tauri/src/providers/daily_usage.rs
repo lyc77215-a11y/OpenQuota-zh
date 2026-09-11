@@ -202,8 +202,12 @@ impl DailyUsageAccumulator {
             today: today_period,
             yesterday: yesterday_period,
             last_30_days,
+            account_history: None,
             daily,
             unknown_models,
+            today_token_breakdown: None,
+            current_window_tokens: None,
+            current_window_token_breakdown: None,
         }
     }
 
