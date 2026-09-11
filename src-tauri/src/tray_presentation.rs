@@ -263,13 +263,17 @@ fn tray_metric(
                             UsageDisplay::Left => (limit - used).max(0.0),
                         };
                         let word = match display {
-                            UsageDisplay::Used => "used",
-                            UsageDisplay::Left => "left",
+                            UsageDisplay::Used => "已用",
+                            UsageDisplay::Left => "剩余",
                         };
                         let unit = quota.unit.as_deref().unwrap_or("requests");
                         return TrayMetric {
                             value: format!("{value:.0}"),
-                            detail: format!("{} {value:.0} {unit} {word}", quota.label),
+                            detail: format!(
+                                "{} {word} {value:.0} {}",
+                                zh_label(&quota.label),
+                                zh_unit(unit)
+                            ),
                             gauge: used_fraction.map(|used_fraction| TrayGauge {
                                 display_fraction: match display {
                                     UsageDisplay::Used => used_fraction,
@@ -288,12 +292,12 @@ fn tray_metric(
                 };
                 let percent = display_fraction * 100.0;
                 let word = match display {
-                    UsageDisplay::Used => "used",
-                    UsageDisplay::Left => "left",
+                    UsageDisplay::Used => "已用",
+                    UsageDisplay::Left => "剩余",
                 };
                 TrayMetric {
                     value: format!("{percent:.0}%"),
-                    detail: format!("{} {percent:.0}% {word}", quota.label),
+                    detail: format!("{} {word} {percent:.0}%", zh_label(&quota.label)),
                     gauge: Some(TrayGauge {
                         display_fraction,
                         #[cfg(any(not(target_os = "macos"), test))]
@@ -333,7 +337,7 @@ fn status_metric(snapshot: &ProviderSnapshot, source_id: &str) -> Option<TrayMet
         .find(|metric| metric.id == source_id)?;
     Some(TrayMetric {
         value: metric.text.clone(),
-        detail: format!("{} {}", metric.label, metric.text),
+        detail: format!("{} {}", zh_label(&metric.label), metric.text),
         gauge: None,
     })
 }
@@ -364,7 +368,7 @@ fn value_metric(
         .unwrap_or(value);
     Some(TrayMetric {
         value,
-        detail: format!("{} {detail}", metric.label),
+        detail: format!("{} {detail}", zh_label(&metric.label)),
         gauge: None,
     })
 }
@@ -377,7 +381,7 @@ fn format_tray_value(value: &MetricValue) -> String {
     value
         .label
         .as_deref()
-        .map(|label| format!("{number} {label}"))
+        .map(|label| format!("{number} {}", zh_unit(label)))
         .unwrap_or(number)
 }
 
@@ -389,7 +393,7 @@ fn format_detail_value(value: &MetricValue) -> String {
     value
         .label
         .as_deref()
-        .map(|label| format!("{number} {label}"))
+        .map(|label| format!("{number} {}", zh_unit(label)))
         .unwrap_or(number)
 }
 
@@ -399,12 +403,41 @@ fn usage_metric(label: &str, period: Option<&UsagePeriod>) -> Option<TrayMetric>
         .estimated_cost_usd
         .map(|value| format!("${value:.2}"))
         .unwrap_or_else(|| format_tokens(period.tokens));
-    let detail = format!("{label} {value}");
+    let detail = format!("{} {value}", zh_label(label));
     Some(TrayMetric {
         value,
         detail,
         gauge: None,
     })
+}
+
+fn zh_label(value: &str) -> &str {
+    match value {
+        "Session" => "5 小时额度",
+        "Weekly" => "每周额度",
+        "Spark" => "Spark 额度",
+        "Spark Weekly" => "Spark 每周额度",
+        "Extra Usage" => "额外用量",
+        "Rate Limit Resets" => "限额重置次数",
+        "Today" => "今天",
+        "Yesterday" => "昨天",
+        "Last 30 Days" => "近 30 天",
+        "Usage Trend" => "用量趋势",
+        "Balance" => "余额",
+        "Status" => "状态",
+        _ => value,
+    }
+}
+
+fn zh_unit(value: &str) -> &str {
+    match value {
+        "requests" => "次请求",
+        "searches" => "次搜索",
+        "credits" => "积分",
+        "available" => "次可用",
+        "tokens" => "Token",
+        _ => value,
+    }
 }
 
 fn format_tokens(tokens: u64) -> String {

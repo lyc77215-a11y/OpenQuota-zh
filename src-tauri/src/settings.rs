@@ -12,7 +12,7 @@ use crate::{
     hashing::sha256_hex,
     models::{
         AppSettings, MetricDefinition, MetricLayout, MetricSection, ProviderCatalog,
-        ProviderDefinition, ProviderLayout, SettingsViewState,
+        ProviderDefinition, ProviderLayout, SettingsViewState, WindowMode,
     },
     providers::{CredentialProbeResults, CredentialProbeStatus, ProviderRegistry},
     storage::{ProviderAccountUpdate, Storage, StorageError},
@@ -604,7 +604,11 @@ fn normalize_with_persisted_accounts(
 ) {
     let catalog = registry.catalog();
     let migrating_to_multi_provider = settings.schema_version < 3;
-    settings.schema_version = 6;
+    let migrating_to_floating_smartbar = settings.schema_version < 7;
+    if migrating_to_floating_smartbar {
+        settings.window_mode = WindowMode::Floating;
+    }
+    settings.schema_version = 7;
     settings.dismissed_update_version = settings
         .dismissed_update_version
         .take()
@@ -1806,7 +1810,7 @@ mod tests {
             &mut settings,
             &HashSet::from(["codex".to_owned(), "antigravity".to_owned()]),
         );
-        assert_eq!(settings.schema_version, 6);
+        assert_eq!(settings.schema_version, 7);
         assert_eq!(
             settings
                 .providers
@@ -1815,6 +1819,33 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["claude", "codex", "cursor", "antigravity", "openrouter"]
         );
+    }
+
+    #[test]
+    fn schema_six_migrates_the_installed_widget_to_floating_mode_once() {
+        let catalog = catalog();
+        let detected = HashSet::from(["codex".to_owned()]);
+        let mut settings = default_settings(&catalog, &detected);
+        settings.schema_version = 6;
+        settings.window_mode = crate::models::WindowMode::Popup;
+
+        normalize(&catalog, &mut settings, &detected);
+
+        assert_eq!(settings.schema_version, 7);
+        assert_eq!(settings.window_mode, crate::models::WindowMode::Floating);
+    }
+
+    #[test]
+    fn schema_seven_preserves_a_later_popup_mode_choice() {
+        let catalog = catalog();
+        let detected = HashSet::from(["codex".to_owned()]);
+        let mut settings = default_settings(&catalog, &detected);
+        settings.schema_version = 7;
+        settings.window_mode = crate::models::WindowMode::Popup;
+
+        normalize(&catalog, &mut settings, &detected);
+
+        assert_eq!(settings.window_mode, crate::models::WindowMode::Popup);
     }
 
     #[test]

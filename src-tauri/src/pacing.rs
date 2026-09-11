@@ -127,17 +127,17 @@ pub enum Milestone {
 impl Milestone {
     pub fn title(self) -> &'static str {
         match self {
-            Self::AlmostOut => "Almost Out",
-            Self::CuttingItClose => "Cutting It Close",
-            Self::WillRunOut => "Will Run Out",
+            Self::AlmostOut => "额度即将用完",
+            Self::CuttingItClose => "额度接近耗尽",
+            Self::WillRunOut => "额度将会耗尽",
         }
     }
 
     pub fn body(self) -> &'static str {
         match self {
-            Self::AlmostOut => "Under 10% usage remaining for this window.",
-            Self::CuttingItClose => "Projected to finish close to your limit.",
-            Self::WillRunOut => "Projected to run out before the limit resets.",
+            Self::AlmostOut => "当前时间窗口的剩余额度已低于 10%。",
+            Self::CuttingItClose => "按当前速度，重置时额度将所剩无几。",
+            Self::WillRunOut => "按当前速度，额度将在重置前耗尽。",
         }
     }
 }

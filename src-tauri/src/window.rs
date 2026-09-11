@@ -24,8 +24,9 @@ use crate::{
 };
 
 pub const MAIN_WINDOW: &str = "main";
-pub const PANEL_WIDTH: f64 = 320.0;
-pub const PANEL_MIN_HEIGHT: u32 = 240;
+pub const PANEL_WIDTH: f64 = 396.0;
+pub const PANEL_MIN_HEIGHT: u32 = 52;
+pub const PANEL_MAX_HEIGHT: u32 = 420;
 const PANEL_SCREEN_FRACTION: f64 = 0.85;
 const PANEL_RESIZE_SAVE_DELAY: Duration = Duration::from_millis(120);
 const LIGHT_PANEL_SURFACE: Color = Color(0xff, 0xff, 0xff, 0xff);
@@ -207,7 +208,8 @@ fn apply_panel_surface_for_theme(
     preference: ThemePreference,
     system_theme: Theme,
 ) -> tauri::Result<()> {
-    window.set_background_color(Some(panel_surface_color(preference, system_theme)))
+    let Color(red, green, blue, _) = panel_surface_color(preference, system_theme);
+    window.set_background_color(Some(Color(red, green, blue, 0)))
 }
 
 pub fn apply_panel_surface(
@@ -275,11 +277,11 @@ pub fn show_main_window(window: &WebviewWindow) {
     let _ = window.set_focus();
 }
 
-fn set_window_chrome(window: &WebviewWindow, floating: bool) -> tauri::Result<()> {
+fn set_window_chrome(window: &WebviewWindow, _floating: bool) -> tauri::Result<()> {
     window
         .set_resizable(false)
-        .and_then(|_| window.set_skip_taskbar(!floating))
-        .and_then(|_| window.set_always_on_top(!floating))
+        .and_then(|_| window.set_skip_taskbar(true))
+        .and_then(|_| window.set_always_on_top(true))
         .and_then(|_| window.set_decorations(false))
 }
 
@@ -490,7 +492,10 @@ fn panel_maximum_height(window: &WebviewWindow) -> Result<u32, String> {
     let frame_overhead = outer_size.height.saturating_sub(inner_size.height);
     let inner_cap =
         room.min(aesthetic_cap).max(f64::from(frame_overhead) + 1.0) - f64::from(frame_overhead);
-    Ok((inner_cap / scale).floor().clamp(1.0, f64::from(u32::MAX)) as u32)
+    Ok(
+        ((inner_cap / scale).floor().clamp(1.0, f64::from(u32::MAX)) as u32)
+            .min(PANEL_MAX_HEIGHT),
+    )
 }
 
 fn configure_panel_size_constraints(window: &WebviewWindow) -> Result<u32, String> {
@@ -530,11 +535,15 @@ fn resize_panel_for_context(window: &WebviewWindow, height: u32) -> Result<(), S
     resize_popup_anchored(window, height)
 }
 
-pub fn fit_panel_to_content(window: &WebviewWindow, height: u32) -> Result<bool, String> {
+pub fn fit_panel_to_content(
+    window: &WebviewWindow,
+    height: u32,
+    force: bool,
+) -> Result<bool, String> {
     let Some(session) = window.app_handle().try_state::<Arc<PanelResizeSession>>() else {
         return Ok(false);
     };
-    if !session.allows_automatic_fit() {
+    if !force && !session.allows_automatic_fit() {
         return Ok(false);
     }
     // Show/open and native drag setup already install the constraints. Auto-fit only needs the
@@ -695,7 +704,7 @@ pub fn resize_popup_anchored(window: &WebviewWindow, height: u32) -> Result<(), 
         target_outer_height,
     );
     window
-        .set_size(tauri::LogicalSize::new(320.0, f64::from(height)))
+        .set_size(tauri::LogicalSize::new(PANEL_WIDTH, f64::from(height)))
         .and_then(|_| {
             window.set_position(tauri::PhysicalPosition::new(outer_position.x, anchored.top))
         })

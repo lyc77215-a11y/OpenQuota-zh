@@ -169,14 +169,38 @@ pub struct DailyUsage {
     pub estimate_complete: bool,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenUsageBreakdown {
+    pub cached: u64,
+    pub input: u64,
+    pub output: u64,
+}
+
+impl TokenUsageBreakdown {
+    pub fn total(self) -> u64 {
+        self.cached
+            .saturating_add(self.input)
+            .saturating_add(self.output)
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct UsageHistory {
     pub today: Option<UsagePeriod>,
     pub yesterday: Option<UsagePeriod>,
     pub last_30_days: Option<UsagePeriod>,
+    #[serde(default)]
+    pub account_history: Option<UsagePeriod>,
     pub daily: Vec<DailyUsage>,
     pub unknown_models: Vec<String>,
+    #[serde(default)]
+    pub today_token_breakdown: Option<TokenUsageBreakdown>,
+    #[serde(default)]
+    pub current_window_tokens: Option<u64>,
+    #[serde(default)]
+    pub current_window_token_breakdown: Option<TokenUsageBreakdown>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -709,21 +733,23 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            schema_version: 6,
+            schema_version: 7,
             providers: Vec::new(),
             known_provider_ids: Vec::new(),
             provider_names: BTreeMap::new(),
             show_total_spend: true,
             theme: ThemePreference::System,
             density: DensityPreference::Default,
-            window_mode: WindowMode::Popup,
+            window_mode: WindowMode::Floating,
             menu_bar_style: MenuBarStyle::Text,
             usage_display: UsageDisplay::Left,
             reset_display: ResetDisplay::Countdown,
             time_format: TimeFormatPreference::System,
             always_show_pacing: false,
             launch_at_login: false,
-            auto_check_updates: true,
+            // This community zh-CN build uses its own app identity. Keep upstream English updates
+            // opt-in so a future official release cannot silently replace the localized build.
+            auto_check_updates: false,
             dismissed_update_version: None,
             last_update_check_at: None,
             global_shortcut: None,
@@ -779,7 +805,7 @@ mod tests {
         assert!(settings.provider_names.is_empty());
         assert_eq!(settings.last_update_check_at, None);
         assert_eq!(settings.log_level, LogLevel::Info);
-        assert_eq!(settings.window_mode, WindowMode::Popup);
+        assert_eq!(settings.window_mode, WindowMode::Floating);
     }
 
     #[test]

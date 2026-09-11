@@ -285,12 +285,12 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 let menu = {
                     let settings_item =
-                        MenuItem::with_id(app, "settings", "Settings", true, Some("CmdOrCtrl+,"))?;
+                        MenuItem::with_id(app, "settings", "设置", true, Some("CmdOrCtrl+,"))?;
                     let separator = PredefinedMenuItem::separator(app)?;
                     let quit = MenuItem::with_id(
                         app,
                         "quit",
-                        "Quit OpenQuota",
+                        "退出 OpenQuota",
                         true,
                         Some("CmdOrCtrl+Q"),
                     )?;
@@ -299,14 +299,14 @@ pub fn run() {
                 #[cfg(not(target_os = "macos"))]
                 let menu = {
                     let open =
-                        MenuItem::with_id(app, "open", "Open OpenQuota", true, None::<&str>)?;
+                        MenuItem::with_id(app, "open", "打开 OpenQuota", true, None::<&str>)?;
                     let customize =
-                        MenuItem::with_id(app, "customize", "Customize…", true, None::<&str>)?;
+                        MenuItem::with_id(app, "customize", "自定义…", true, None::<&str>)?;
                     let settings_item =
-                        MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
+                        MenuItem::with_id(app, "settings", "设置…", true, None::<&str>)?;
                     let separator = PredefinedMenuItem::separator(app)?;
                     let quit =
-                        MenuItem::with_id(app, "quit", "Quit OpenQuota", true, None::<&str>)?;
+                        MenuItem::with_id(app, "quit", "退出 OpenQuota", true, None::<&str>)?;
                     Menu::with_items(app, &[&open, &customize, &settings_item, &separator, &quit])?
                 };
 
