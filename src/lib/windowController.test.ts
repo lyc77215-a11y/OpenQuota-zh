@@ -86,7 +86,7 @@ describe('hybrid window controller', () => {
     controller.beginContentMorph();
     controller.scheduleFit();
 
-    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(430));
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(370, true));
     expect(mocks.getCurrentWindow).not.toHaveBeenCalled();
     expect(document.querySelector<HTMLElement>('.screen-stage')).toHaveStyle({ height: '300px' });
     controller.dispose();
@@ -137,11 +137,30 @@ describe('hybrid window controller', () => {
 
     controller.scheduleFit();
 
-    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(850));
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(850, true));
     controller.dispose();
   });
 
-  it('keeps Settings at the most recently measured dashboard height', async () => {
+  it('uses scroll height when an expanded nested detail outgrows the fitted stage', async () => {
+    const page = document.querySelector<HTMLElement>('.screen-page')!;
+    Object.defineProperty(page, 'scrollHeight', { configurable: true, value: 430 });
+    const controller = createWindowController({
+      screen: () => 'dashboard',
+      refreshing: () => false,
+      reordering: () => false,
+      automatic: () => true,
+      reducedMotion: () => true,
+      onError: vi.fn(),
+    });
+
+    controller.scheduleFit();
+
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(500, true));
+    expect(document.querySelector<HTMLElement>('.screen-stage')).toHaveStyle({ height: '430px' });
+    controller.dispose();
+  });
+
+  it('lets Settings expand beyond the compact dashboard height', async () => {
     let activeScreen: 'dashboard' | 'settings' = 'dashboard';
     const page = document.querySelector<HTMLElement>('.screen-page')!;
     let renderedHeight = 300;
@@ -168,7 +187,7 @@ describe('hybrid window controller', () => {
     });
 
     controller.scheduleFit();
-    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(430));
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(370, true));
 
     activeScreen = 'settings';
     page.dataset.screen = 'settings';
@@ -176,11 +195,11 @@ describe('hybrid window controller', () => {
     controller.scheduleFit();
 
     await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledTimes(2));
-    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(430);
+    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(830, false);
     controller.dispose();
   });
 
-  it('preserves dashboard content height when floating chrome changes in Settings', async () => {
+  it('sizes Settings from its own content when floating chrome changes', async () => {
     let activeScreen: 'dashboard' | 'settings' = 'dashboard';
     const page = document.querySelector<HTMLElement>('.screen-page')!;
     let renderedHeight = 300;
@@ -211,28 +230,29 @@ describe('hybrid window controller', () => {
     });
 
     controller.scheduleFit();
-    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(462));
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(402, true));
 
     activeScreen = 'settings';
     page.dataset.screen = 'settings';
     renderedHeight = 700;
     controller.scheduleFit();
     await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledTimes(2));
-    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(462);
+    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(850, false);
 
     chrome.remove();
     controller.scheduleFit();
     await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledTimes(3));
-    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(430);
+    expect(mocks.fitPanelToContent).toHaveBeenLastCalledWith(830, false);
     controller.dispose();
   });
 
-  it('defers automatic fitting while refresh or reordering can move rows', async () => {
+  it('defers automatic fitting only while a reorder gesture owns the layout', async () => {
     let refreshing = true;
+    let reordering = true;
     const controller = createWindowController({
       screen: () => 'dashboard',
       refreshing: () => refreshing,
-      reordering: () => false,
+      reordering: () => reordering,
       automatic: () => true,
       reducedMotion: () => true,
       onError: vi.fn(),
@@ -242,9 +262,10 @@ describe('hybrid window controller', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(mocks.fitPanelToContent).not.toHaveBeenCalled();
 
+    reordering = false;
     refreshing = false;
     controller.scheduleFit();
-    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(430));
+    await waitFor(() => expect(mocks.fitPanelToContent).toHaveBeenCalledWith(370, true));
     controller.dispose();
   });
 });

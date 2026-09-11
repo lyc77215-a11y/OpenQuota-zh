@@ -132,6 +132,22 @@
 
   <div class="settings-section">
     <h2>General</h2>
+    {#if settingsView.trayAvailable}
+      <label class="setting-row"
+        ><span><b>桌面悬浮窗</b><small>开启后常驻桌面；关闭后只保留托盘，需要时再点开</small></span
+        ><input
+          type="checkbox"
+          aria-label="桌面悬浮窗"
+          checked={settings.windowMode === 'floating'}
+          onchange={(event) =>
+            patch({ windowMode: event.currentTarget.checked ? 'floating' : 'popup' })}
+        /></label
+      >
+    {/if}
+    <div class="setting-row">
+      <span><b>额度报表更新</b><small>后台每 5 分钟自动刷新，也可在悬浮条上立即刷新</small></span
+      ><strong class="setting-value">5 分钟</strong>
+    </div>
     <label class="setting-row"
       ><span><b>Show Total Spend</b></span><input
         type="checkbox"
@@ -204,19 +220,6 @@
         onChange={(value) => patch({ density: value as AppSettings['density'] })}
       />
     </div>
-    {#if settingsView.trayAvailable}
-      <div class="setting-row">
-        <span><b>Window Mode</b></span><SelectMenu
-          label="Window Mode"
-          value={settings.windowMode}
-          options={[
-            { value: 'popup', label: 'Tray Popup' },
-            { value: 'floating', label: 'Floating Window' },
-          ]}
-          onChange={(value) => patch({ windowMode: value as AppSettings['windowMode'] })}
-        />
-      </div>
-    {/if}
     <div class="setting-row">
       <span><b>Panel Height</b></span><SelectMenu
         label="Panel Height"
@@ -583,6 +586,13 @@
     .setting-row small {
       font-size: 10px;
       line-height: 12px;
+    }
+
+    .setting-value {
+      flex: 0 0 auto;
+      color: var(--secondary);
+      font-size: 12px;
+      font-weight: 500;
     }
 
     input[type='checkbox'] {

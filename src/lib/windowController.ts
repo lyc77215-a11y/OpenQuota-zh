@@ -31,7 +31,7 @@ export function createWindowController(options: WindowControllerOptions) {
   let dashboardBodyHeight: number | null = null;
 
   function shouldDefer() {
-    return options.reordering() || shouldDeferPanelFit(options.screen(), options.refreshing());
+    return options.reordering() || shouldDeferPanelFit();
   }
 
   function cancelPendingResize() {
@@ -75,13 +75,15 @@ export function createWindowController(options: WindowControllerOptions) {
     const content = document.querySelector<HTMLElement>('.content');
     const stage = document.querySelector<HTMLElement>('.screen-stage');
     const header = document.querySelector<HTMLElement>('.screen-header');
-    const footer = document.querySelector<HTMLElement>('.footer');
+    const footer = screen === 'dashboard' ? null : document.querySelector<HTMLElement>('.footer');
     const dragger = document.querySelector<HTMLElement>('.panel-resize-dragger');
     const floatingChrome = document.querySelector<HTMLElement>('.floating-chrome');
     if (!page || !content || !stage) return;
 
     const renderedHeight = page.getBoundingClientRect().height;
-    const pageHeight = renderedHeight > 0 ? renderedHeight : page.offsetHeight || page.scrollHeight;
+    // The stage keeps its previous fitted height between morphs. When a nested detail expands,
+    // the rendered box can therefore stay stale even though the page's scroll content is taller.
+    const pageHeight = Math.max(renderedHeight, page.offsetHeight, page.scrollHeight);
     stage.style.height = `${pageHeight}px`;
 
     if (!options.automatic() || !('__TAURI_INTERNALS__' in window) || !resizeAvailable) return;
@@ -152,7 +154,7 @@ export function createWindowController(options: WindowControllerOptions) {
       while (pendingResizeHeight !== null && resizeAvailable && options.automatic()) {
         const nextHeight = pendingResizeHeight;
         pendingResizeHeight = null;
-        await fitPanelToContent(nextHeight);
+        await fitPanelToContent(nextHeight, options.screen() === 'dashboard');
       }
     } catch {
       pendingResizeHeight = null;

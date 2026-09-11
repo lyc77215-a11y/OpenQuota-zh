@@ -77,12 +77,22 @@ export interface DailyUsage {
   estimateComplete: boolean;
 }
 
+export interface TokenUsageBreakdown {
+  cached: number;
+  input: number;
+  output: number;
+}
+
 export interface UsageHistory {
   today: UsagePeriod | null;
   yesterday: UsagePeriod | null;
   last30Days: UsagePeriod | null;
+  accountHistory?: UsagePeriod | null;
   daily: DailyUsage[];
   unknownModels: string[];
+  todayTokenBreakdown?: TokenUsageBreakdown | null;
+  currentWindowTokens?: number | null;
+  currentWindowTokenBreakdown?: TokenUsageBreakdown | null;
 }
 
 export interface ProviderSnapshot {

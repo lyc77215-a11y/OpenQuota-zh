@@ -18,7 +18,7 @@ function settingsView(theme: AppSettings['theme'] = 'system'): SettingsViewState
     trayAvailable: true,
     platformSummary: null,
     settings: {
-      schemaVersion: 6,
+      schemaVersion: 7,
       providerNames: {},
       providers: [],
       knownProviderIds: [],

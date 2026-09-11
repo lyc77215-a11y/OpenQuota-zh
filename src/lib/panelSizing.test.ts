@@ -8,14 +8,12 @@ import {
 } from './panelSizing';
 
 describe('panel sizing', () => {
-  it('keeps dashboard geometry fixed while provider data is refreshing', () => {
-    expect(shouldDeferPanelFit('dashboard', true)).toBe(true);
-    expect(shouldDeferPanelFit('dashboard', false)).toBe(false);
-    expect(shouldDeferPanelFit('settings', true)).toBe(false);
+  it('keeps the fixed-height smart bar responsive while provider data is refreshing', () => {
+    expect(shouldDeferPanelFit()).toBe(false);
   });
 
   it('uses the native panel floor for short content', () => {
-    expect(panelTargetHeight(120, 900)).toBe(PANEL_MIN_HEIGHT);
+    expect(panelTargetHeight(40, 900)).toBe(PANEL_MIN_HEIGHT);
   });
 
   it('caps the panel at 85% of the active monitor work area', () => {
@@ -27,9 +25,9 @@ describe('panel sizing', () => {
     expect(panelTargetHeight(487.2, 1080)).toBe(488);
   });
 
-  it('keeps Settings at the dashboard height while content screens size independently', () => {
-    expect(screenPanelHeight('dashboard', 610, 540)).toBe(610);
-    expect(screenPanelHeight('settings', 850, 540)).toBe(540);
+  it('keeps the dashboard at its compact height while content screens size independently', () => {
+    expect(screenPanelHeight('dashboard', 610, 540)).toBe(540);
+    expect(screenPanelHeight('settings', 850, 540)).toBe(850);
     expect(screenPanelHeight('customize', 320, 540)).toBe(320);
     expect(screenPanelHeight('provider:codex', 410, 540)).toBe(410);
   });

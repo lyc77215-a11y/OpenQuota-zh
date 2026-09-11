@@ -1,8 +1,8 @@
-export const PANEL_MIN_HEIGHT = 240;
+export const PANEL_MIN_HEIGHT = 52;
 export const PANEL_SCREEN_FRACTION = 0.85;
 
-export function shouldDeferPanelFit(screen: string, refreshing: boolean) {
-  return screen === 'dashboard' && refreshing;
+export function shouldDeferPanelFit() {
+  return false;
 }
 
 export function panelMaximumHeight(workAreaHeight: number) {
@@ -20,5 +20,5 @@ export function screenPanelHeight(
   contentTarget: number,
   dashboardHeight: number,
 ) {
-  return screen === 'settings' ? dashboardHeight : contentTarget;
+  return screen === 'dashboard' ? dashboardHeight : contentTarget;
 }

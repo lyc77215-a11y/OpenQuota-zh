@@ -96,8 +96,8 @@ export function getPanelHeightMode() {
   return invoke<PanelHeightMode>('get_panel_height_mode');
 }
 
-export function fitPanelToContent(height: number) {
-  return invoke<boolean>('fit_panel_to_content', { height });
+export function fitPanelToContent(height: number, force = false) {
+  return invoke<boolean>('fit_panel_to_content', { height, force });
 }
 
 export function setPanelHeightAutomatic() {

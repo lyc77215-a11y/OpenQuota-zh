@@ -16,7 +16,9 @@ const tauriConfig = JSON.parse(tauriConfigSource) as {
       minHeight: number;
       minWidth: number;
       maxWidth: number;
+      maxHeight: number;
       resizable: boolean;
+      shadow: boolean;
     }>;
   };
 };
@@ -24,22 +26,35 @@ const tauriConfig = JSON.parse(tauriConfigSource) as {
 describe('popover geometry contract', () => {
   it('keeps system resize borders locked and exposes only the native vertical grip', () => {
     expect(tauriConfig.app.windows[0]).toMatchObject({
-      width: 320,
-      height: 800,
-      minWidth: 320,
-      maxWidth: 320,
-      minHeight: 240,
+      width: 396,
+      height: 52,
+      minWidth: 396,
+      maxWidth: 396,
+      maxHeight: 420,
+      minHeight: 52,
       resizable: false,
+      shadow: false,
     });
     expect(css).toMatch(/\.panel-resize-dragger\s*{[^}]*height: 10px;[^}]*cursor: ns-resize;/s);
     expect(css).toMatch(/\.panel-resize-dragger::after\s*{[^}]*width: 36px;[^}]*height: 4px;/s);
   });
 
-  it('lets the webview shrink below its nominal width without creating horizontal focus scroll', () => {
+  it('keeps the localized build on its input-method-style horizontal canvas', () => {
     expect(componentCss).toMatch(
-      /html,\s*body,\s*#app,\s*\.popover\s*{[^}]*width: 100%;[^}]*min-width: 0;[^}]*max-width: 320px;/s,
+      /html,\s*body,\s*#app,\s*\.popover\s*{[^}]*width: 100%;[^}]*min-width: 0;[^}]*max-width: 396px;/s,
     );
-    expect(css).not.toMatch(/\.popover\s*{[^}]*\n\s*width: 320px;/s);
+    expect(css).toMatch(
+      /\.bar-head\s*{[^}]*display: grid;[^}]*height: 52px;[^}]*grid-template-columns: 28px minmax\(126px, 1fr\) 72px 84px;/s,
+    );
+    expect(css).toMatch(/\.popover--dashboard \.content\s*{[^}]*padding: 0;/s);
+    expect(css).toMatch(
+      /\.popover--dashboard\.popover--quota-expanded \.content\s*{[^}]*overflow-y: auto;/s,
+    );
+    expect(css).toMatch(/\.usage__track\s*{[^}]*height: 4px;[^}]*border-radius: 999px;/s);
+    expect(css).toMatch(/\.compact-quota-bar\s*{[^}]*background: var\(--tray\);[^}]*box-shadow:/s);
+    expect(css).toMatch(/\.compact-quota-bar\s*{[^}]*border: 0;/s);
+    expect(css).not.toContain('.compact-quota-bar::before');
+    expect(css).toMatch(/\.reminder\s*{[^}]*border: 0;[^}]*border-radius: 999px;/s);
   });
 
   it('keeps regular-density spacing and chrome dimensions', () => {

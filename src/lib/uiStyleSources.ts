@@ -1,4 +1,5 @@
 import appSource from '../App.svelte?raw';
+import compactQuotaBarSource from './CompactQuotaBar.svelte?raw';
 import customizeDetailSource from './CustomizeProviderDetail.svelte?raw';
 import customizeListSource from './CustomizeProviderList.svelte?raw';
 import dashboardSource from './Dashboard.svelte?raw';
@@ -14,6 +15,7 @@ import usageTrendSource from './UsageTrend.svelte?raw';
 
 const componentSources = [
   appSource,
+  compactQuotaBarSource,
   customizeDetailSource,
   customizeListSource,
   dashboardSource,
