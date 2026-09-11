@@ -126,6 +126,11 @@ describe('OpenQuota dashboard', () => {
       'data-tooltip',
       '$3.84 · Estimated locally, so it may be off',
     );
+    expect(screen.getByLabelText(/^用量提醒：/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '刷新 Codex 用量' })).toHaveAttribute(
+      'data-tooltip',
+      '每 5 分钟自动更新；点击立即刷新',
+    );
     expect(screen.getByText(`OpenQuota ${import.meta.env.APP_VERSION}`)).toBeInTheDocument();
     expect(container.querySelector('.floating-chrome')).not.toBeInTheDocument();
   });
@@ -186,12 +191,10 @@ describe('OpenQuota dashboard', () => {
     try {
       const { container } = render(App);
       await screen.findByText('Plus');
-      const dragSurface = container.querySelector<HTMLElement>('.floating-chrome__drag');
+      const dragSurface = container.querySelector<HTMLElement>('.compact-quota-bar');
       expect(dragSurface).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Hide OpenQuota' })).toBeInTheDocument();
-      expect(screen.getByRole('separator', { name: 'Resize panel height' })).toHaveClass(
-        'panel-resize-dragger--bottom',
-      );
+      expect(screen.getByRole('button', { name: '收起用量横条' })).toBeInTheDocument();
+      expect(screen.queryByRole('separator', { name: 'Resize panel height' })).toBeNull();
 
       await fireEvent.pointerDown(dragSurface!, { button: 0 });
       expect(mocks.startDragging).toHaveBeenCalledOnce();
@@ -234,13 +237,14 @@ describe('OpenQuota dashboard', () => {
     try {
       render(App);
       await screen.findByText('Plus');
+      expect(screen.queryByRole('separator', { name: 'Resize panel height' })).toBeNull();
+      await fireEvent.click(screen.getByRole('button', { name: '打开设置' }));
       expect(screen.getByRole('separator', { name: 'Resize panel height' })).toHaveClass(
         'panel-resize-dragger--bottom',
       );
-      await fireEvent.click(screen.getByLabelText('Open options'));
-      await fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-      await fireEvent.click(screen.getByRole('combobox', { name: 'Window Mode' }));
-      await fireEvent.click(screen.getByRole('option', { name: 'Tray Popup' }));
+      const floatingWindow = screen.getByRole('checkbox', { name: '桌面悬浮窗' });
+      expect(floatingWindow).toBeChecked();
+      await fireEvent.click(floatingWindow);
 
       await waitFor(() =>
         expect(screen.getByRole('separator', { name: 'Resize panel height' })).toHaveClass(
@@ -325,7 +329,7 @@ describe('OpenQuota dashboard', () => {
     expect(await screen.findByRole('heading', { name: 'Claude' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Antigravity' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '$37.50 left' })).toBeInTheDocument();
-    expect(screen.getAllByRole('progressbar')).toHaveLength(6);
+    expect(screen.getAllByRole('progressbar')).toHaveLength(8);
     expect(
       within(screen.getByRole('region', { name: 'Total Spend' })).getByRole('img', {
         name: 'Only includes Claude and Codex',
@@ -822,11 +826,10 @@ describe('OpenQuota dashboard', () => {
     });
     render(App);
     await screen.findByText('Plus');
-    expect(screen.getByRole('button', { name: 'Close OpenQuota' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '收起用量横条' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Keep Window Open' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Return to Tray Popup' })).not.toBeInTheDocument();
-    await fireEvent.click(screen.getByLabelText('Open options'));
-    await fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await fireEvent.click(screen.getByRole('button', { name: '打开设置' }));
     expect(screen.getByText('GNOME · Wayland · standalone window')).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Window Mode' })).not.toBeInTheDocument();
   });
@@ -1277,7 +1280,7 @@ describe('OpenQuota dashboard', () => {
     );
   });
 
-  it('honors Reduce Motion without overriding a manually sized native panel', async () => {
+  it('keeps the compact dashboard content-sized after a manually sized settings panel', async () => {
     const originalMatchMedia = window.matchMedia;
     const defaultInvoke = mocks.invoke.getMockImplementation()!;
     mocks.invoke.mockImplementation((command: string, args?: InvokeArgs) => {
@@ -1309,9 +1312,10 @@ describe('OpenQuota dashboard', () => {
       );
       await fireEvent.click(screen.getByLabelText('Back'));
       mocks.invoke.mockClear();
-      await fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
-      await new Promise((resolve) => setTimeout(resolve, 20));
-      expect(mocks.invoke).not.toHaveBeenCalledWith('fit_panel_to_content', expect.anything());
+      await fireEvent.click(screen.getByRole('button', { name: '展开详细用量' }));
+      await waitFor(() =>
+        expect(mocks.invoke).toHaveBeenCalledWith('fit_panel_to_content', expect.anything()),
+      );
     } finally {
       delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
       window.matchMedia = originalMatchMedia;
@@ -1333,6 +1337,8 @@ describe('OpenQuota dashboard', () => {
     });
     try {
       render(App);
+      await screen.findByText('Plus');
+      await fireEvent.click(screen.getByRole('button', { name: '打开设置' }));
       const grip = await screen.findByRole('separator', { name: 'Resize panel height' });
       await waitFor(() => expect(grip).toHaveClass('panel-resize-dragger--bottom'));
 
@@ -1365,9 +1371,11 @@ describe('OpenQuota dashboard', () => {
       await screen.findByText('Plus');
       await fireEvent.click(screen.getByLabelText('Open options'));
       await fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
-      const windowMode = screen.getByRole('combobox', { name: 'Window Mode' });
-      await fireEvent.click(windowMode);
-      await fireEvent.click(screen.getByRole('option', { name: 'Floating Window' }));
+      const floatingWindow = screen.getByRole('checkbox', { name: '桌面悬浮窗' });
+      expect(floatingWindow).not.toBeChecked();
+      expect(screen.getByText('额度报表更新')).toBeInTheDocument();
+      expect(screen.getByText('5 分钟', { selector: '.setting-value' })).toBeInTheDocument();
+      await fireEvent.click(floatingWindow);
       await waitFor(() =>
         expect(mocks.invoke).toHaveBeenCalledWith(
           'save_app_settings',
@@ -1391,14 +1399,7 @@ describe('OpenQuota dashboard', () => {
       await waitFor(() => expect(heightMode).toHaveTextContent('Manual'));
 
       await fireEvent.click(screen.getByLabelText('Back'));
-      const grip = screen.getByRole('separator', { name: 'Resize panel height' });
-      await fireEvent.pointerDown(grip, { button: 0, detail: 1 });
-      await fireEvent.pointerDown(grip, { button: 0, detail: 2 });
-      await waitFor(() =>
-        expect(
-          mocks.invoke.mock.calls.filter(([command]) => command === 'set_panel_height_automatic'),
-        ).toHaveLength(2),
-      );
+      expect(screen.queryByRole('separator', { name: 'Resize panel height' })).toBeNull();
     } finally {
       delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
     }

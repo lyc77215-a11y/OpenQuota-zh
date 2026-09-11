@@ -31,6 +31,7 @@
   import CustomizeProviderDetail from './lib/CustomizeProviderDetail.svelte';
   import CustomizeProviderList from './lib/CustomizeProviderList.svelte';
   import ConfirmationSheet from './lib/ConfirmationSheet.svelte';
+  import CompactQuotaBar from './lib/CompactQuotaBar.svelte';
   import { restoreCustomization } from './lib/customizationHistory';
   import Dashboard from './lib/Dashboard.svelte';
   import Icon from './lib/Icon.svelte';
@@ -61,6 +62,9 @@
 
   let viewState = $state<UsageViewState>(emptyView);
   let catalog = $state<ProviderCatalogIndex>(emptyProviderCatalog);
+  const compactProviderId = $derived(
+    catalog.providers.find((provider) => provider.displayName === 'Codex')?.id ?? '',
+  );
   let screen = $state<Screen>('dashboard');
   let now = $state(Date.now());
   let settingsError = $state<string | null>(null);
@@ -76,6 +80,7 @@
   let resettingCustomization = $state(false);
   let showAbout = $state(false);
   let shareMenuOpen = $state(false);
+  let quotaExpanded = $state(false);
   let optionsMenuElement = $state<HTMLDetailsElement>();
   let shareMenuElement = $state<HTMLDetailsElement>();
   let shareTimer: ReturnType<typeof setTimeout> | undefined;
@@ -104,7 +109,7 @@
     screen: () => screen,
     refreshing: () => anyRefreshing,
     reordering: () => reordering,
-    automatic: () => panelHeightMode === 'automatic',
+    automatic: () => screen === 'dashboard' || panelHeightMode === 'automatic',
     reducedMotion: () => reducedMotion,
     onError: (message) => (settingsError = message),
   });
@@ -141,6 +146,7 @@
 
   function closeMainWindow() {
     resetTransientUi();
+    quotaExpanded = false;
     navigate('dashboard');
     void dismissMainWindow();
   }
@@ -188,6 +194,13 @@
       ...current.settings,
       windowMode: floatingWindow ? 'popup' : 'floating',
     });
+  }
+
+  function toggleQuotaDetails() {
+    beginContentMorph();
+    quotaExpanded = !quotaExpanded;
+    if (panelHeightMode !== 'automatic') void changePanelHeightMode('automatic');
+    queueMicrotask(scheduleWindowFit);
   }
 
   function cloneSettings(value: AppSettings): AppSettings {
@@ -684,6 +697,8 @@
 
 <main
   class="popover"
+  class:popover--dashboard={screen === 'dashboard'}
+  class:popover--quota-expanded={screen === 'dashboard' && quotaExpanded}
   class:popover--floating={floatingWindow}
   class:popover--macos={floatingWindow && platform === 'macos'}
   aria-label="OpenQuota usage dashboard"
@@ -692,7 +707,7 @@
   <p id="reorder-instructions" class="sr-only">
     Drag to reorder. With a keyboard, use Alt plus Up Arrow or Alt plus Down Arrow.
   </p>
-  {#if renderedResizeEdge === 'top'}
+  {#if screen !== 'dashboard' && renderedResizeEdge === 'top'}
     <div
       class="panel-resize-dragger panel-resize-dragger--top"
       role="separator"
@@ -701,7 +716,7 @@
       onpointerdown={handlePanelResizePointerDown}
     ></div>
   {/if}
-  {#if floatingWindow}
+  {#if floatingWindow && screen !== 'dashboard'}
     <header class="floating-chrome" aria-label="OpenQuota window controls">
       <div class="floating-chrome__drag">
         <OpenQuotaMark size={14} />
@@ -766,32 +781,47 @@
             }}
           >
             {#if screen === 'dashboard'}
-              <Dashboard
-                {viewState}
-                {catalog}
-                renamableProviderIds={settingsState.renamableProviderIds}
-                settings={settingsState.settings}
+              <CompactQuotaBar
+                state={compactProviderId ? viewState.providers[compactProviderId] : undefined}
                 {now}
-                onSettingsChange={saveSettings}
-                onCustomizationChange={saveCustomization}
-                onReorderStart={beginCustomizationGesture}
-                onReorderEnd={endCustomizationGesture}
-                onCustomize={() => navigate('customize')}
-                onOpenProviderCustomize={(id) => navigate(`provider:${id}`)}
-                onRenameProvider={openRenameProvider}
-                onShare={shareProvider}
-                onShareTotal={shareTotalSpend}
-                onRefresh={refreshProvider}
-                onOpenProviderLink={openProviderLink}
-                onContentMorph={beginContentMorph}
-                {reducedMotion}
-                updateStatus={updates.status}
-                installingUpdate={updates.installing}
-                updateProgress={updates.progress}
-                updateError={updates.error}
-                onInstallUpdate={() => updates.install()}
-                onOpenUpdatePage={() => updates.openDownloadPage()}
+                expanded={quotaExpanded}
+                onToggle={toggleQuotaDetails}
+                onRefresh={() => {
+                  if (compactProviderId) void refreshProvider(compactProviderId);
+                }}
+                onSettings={() => navigate('settings')}
+                onClose={closeMainWindow}
+                onDragStart={handleFloatingWindowPointerDown}
+                onContentChange={scheduleWindowFit}
               />
+              <div class="legacy-dashboard">
+                <Dashboard
+                  {viewState}
+                  {catalog}
+                  renamableProviderIds={settingsState.renamableProviderIds}
+                  settings={settingsState.settings}
+                  {now}
+                  onSettingsChange={saveSettings}
+                  onCustomizationChange={saveCustomization}
+                  onReorderStart={beginCustomizationGesture}
+                  onReorderEnd={endCustomizationGesture}
+                  onCustomize={() => navigate('customize')}
+                  onOpenProviderCustomize={(id) => navigate(`provider:${id}`)}
+                  onRenameProvider={openRenameProvider}
+                  onShare={shareProvider}
+                  onShareTotal={shareTotalSpend}
+                  onRefresh={refreshProvider}
+                  onOpenProviderLink={openProviderLink}
+                  onContentMorph={beginContentMorph}
+                  {reducedMotion}
+                  updateStatus={updates.status}
+                  installingUpdate={updates.installing}
+                  updateProgress={updates.progress}
+                  updateError={updates.error}
+                  onInstallUpdate={() => updates.install()}
+                  onOpenUpdatePage={() => updates.openDownloadPage()}
+                />
+              </div>
             {:else if screen === 'settings'}
               <SettingsScreen
                 settingsView={settingsState}
@@ -838,7 +868,7 @@
     </div>
 
     {#if screen === 'dashboard' || screen === 'settings'}
-      <footer class="footer">
+      <footer class="footer" class:footer--legacy={screen === 'dashboard'}>
         <button
           class="identity"
           type="button"
@@ -987,6 +1017,7 @@
           <h1>OpenQuota</h1>
           <p>Version {appVersion}</p>
           <small>Private, local usage monitoring for your AI coding tools.</small>
+          <small>原作 © 2026 deviffyy · MIT 许可 · 简体中文横向版改编</small>
         </div>
       </div>
     {/if}
@@ -999,7 +1030,7 @@
       {/if}
     </div>
   {/if}
-  {#if renderedResizeEdge === 'bottom'}
+  {#if screen !== 'dashboard' && renderedResizeEdge === 'bottom'}
     <div
       class="panel-resize-dragger panel-resize-dragger--bottom"
       role="separator"
@@ -1146,6 +1177,34 @@
       overflow-y: auto;
       scrollbar-width: none;
       overflow-x: hidden;
+    }
+
+    .popover--dashboard .content {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .popover--dashboard.popover--quota-expanded .content {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .popover--dashboard {
+      background: transparent;
+    }
+
+    .popover--dashboard:not(.popover--quota-expanded) .screen-stage,
+    .popover--dashboard:not(.popover--quota-expanded) .screen-page[data-screen='dashboard'] {
+      height: 52px;
+    }
+
+    .legacy-dashboard,
+    .footer--legacy {
+      position: fixed;
+      top: 0;
+      left: -10000px;
+      width: 380px;
     }
 
     .content::-webkit-scrollbar {
@@ -1683,7 +1742,77 @@
     .popover {
       width: 100%;
       min-width: 0;
-      max-width: 320px;
+      max-width: 396px;
+    }
+
+    @media (min-width: 600px) {
+      .content {
+        padding: 10px 14px 8px;
+      }
+
+      .screen-page[data-screen='dashboard'] {
+        display: grid;
+        grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+        align-items: start;
+        gap: 10px 12px;
+      }
+
+      .screen-page[data-screen='dashboard'] > .hint-card,
+      .screen-page[data-screen='dashboard'] > .detection-card,
+      .screen-page[data-screen='dashboard'] > .empty-dashboard {
+        grid-column: 1 / -1;
+      }
+
+      .screen-page[data-screen='dashboard'] > .total-spend-section {
+        grid-column: 1;
+        margin: 0;
+      }
+
+      .screen-page[data-screen='dashboard'] > .provider-reorder-shell {
+        grid-column: 2;
+        margin-top: 0;
+      }
+
+      .screen-page[data-screen='dashboard'] .provider-section + .provider-section,
+      .screen-page[data-screen='dashboard'] .provider-reorder-shell + .provider-reorder-shell,
+      .screen-page[data-screen='dashboard'] .total-spend-section + .provider-section,
+      .screen-page[data-screen='dashboard'] .total-spend-section + .provider-reorder-shell {
+        margin-top: 10px;
+      }
+
+      .screen-page[data-screen='dashboard'] .provider-card {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        column-gap: 16px;
+        padding: 5px 12px;
+      }
+
+      .screen-page[data-screen='dashboard'] .provider-card > .metric-context-target {
+        min-width: 0;
+      }
+
+      .screen-page[data-screen='dashboard']
+        .provider-card
+        > .metric-context-target:nth-of-type(even) {
+        padding-left: 4px;
+        border-left: 1px solid var(--separator);
+      }
+
+      .screen-page[data-screen='dashboard'] .provider-card > .demand-divider,
+      .screen-page[data-screen='dashboard'] .provider-card > .demand-metrics,
+      .screen-page[data-screen='dashboard'] .provider-card > .provider-notice-row {
+        grid-column: 1 / -1;
+      }
+
+      .screen-page:not([data-screen='dashboard']) {
+        max-width: 396px;
+        margin: 0 auto;
+      }
+
+      .footer {
+        min-height: 44px;
+        padding: 7px 14px;
+      }
     }
   }
 </style>
