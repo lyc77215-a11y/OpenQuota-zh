@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::child_process::background_command;
 
-const RELEASE_URL: &str = "https://github.com/deviffyy/OpenQuota/releases/latest";
+const RELEASE_URL: &str = "https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest";
 
 #[derive(Default)]
 pub struct UpdateCoordinator {
@@ -315,6 +315,7 @@ pub fn open_update_page() -> Result<(), String> {
 mod tests {
     use super::{
         classify_updater_error, progress, retryable_download_error, supports_in_app_install_for,
+        RELEASE_URL,
     };
     use tauri_plugin_updater::Error as UpdaterError;
 
@@ -331,6 +332,14 @@ mod tests {
         assert!(supports_in_app_install_for(false, false));
         assert!(supports_in_app_install_for(true, true));
         assert!(!supports_in_app_install_for(true, false));
+    }
+
+    #[test]
+    fn release_page_points_to_this_distribution() {
+        assert_eq!(
+            RELEASE_URL,
+            "https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest"
+        );
     }
 
     #[test]

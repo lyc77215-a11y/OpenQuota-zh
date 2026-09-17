@@ -63,7 +63,7 @@ describe('OpenQuota customization persistence and reorder', () => {
           version: null,
           body: null,
           installable: true,
-          releaseUrl: 'https://github.com/deviffyy/OpenQuota/releases/latest',
+          releaseUrl: 'https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest',
         });
       return Promise.reject(new Error(`unexpected command ${command}`));
     });

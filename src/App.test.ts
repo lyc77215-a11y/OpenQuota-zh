@@ -105,7 +105,7 @@ describe('OpenQuota dashboard', () => {
           version: null,
           body: null,
           installable: true,
-          releaseUrl: 'https://github.com/deviffyy/OpenQuota/releases/latest',
+          releaseUrl: 'https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest',
         });
       return Promise.reject(new Error(`unexpected command ${command}`));
     });
@@ -320,7 +320,7 @@ describe('OpenQuota dashboard', () => {
           version: null,
           body: null,
           installable: true,
-          releaseUrl: 'https://github.com/deviffyy/OpenQuota/releases/latest',
+          releaseUrl: 'https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest',
         });
       return Promise.resolve(multiProviderSettings);
     });
@@ -379,7 +379,7 @@ describe('OpenQuota dashboard', () => {
           version: null,
           body: null,
           installable: true,
-          releaseUrl: 'https://github.com/deviffyy/OpenQuota/releases/latest',
+          releaseUrl: 'https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest',
         });
       return Promise.resolve();
     });
@@ -820,7 +820,7 @@ describe('OpenQuota dashboard', () => {
           version: null,
           body: null,
           installable: true,
-          releaseUrl: 'https://github.com/deviffyy/OpenQuota/releases/latest',
+          releaseUrl: 'https://github.com/lyc77215-a11y/OpenQuota-zh/releases/latest',
         });
       return Promise.resolve();
     });
